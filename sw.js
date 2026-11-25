@@ -1,6 +1,6 @@
 /* عامل الخدمة: يجعل المنصة تعمل دون إنترنت بعد أول تحميل.
    غيّر رقم الإصدار عند نشر نسخة جديدة ليُحدَّث التخزين. */
-const VER = 'insp-kankossa-v10';
+const VER = 'insp-kankossa-v11';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

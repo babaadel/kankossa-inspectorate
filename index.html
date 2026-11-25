@@ -617,10 +617,10 @@ function seed(){
 
 /* ---------- تحميل/حفظ ---------- */
 let DB=null,U=null;
-function load(){const raw=store.get(KEY);try{DB=raw?JSON.parse(raw):null}catch(e){DB=null}if(DB&&DB.v===3){DB.visits=DB.visits||[];DB.tinsp=DB.tinsp||[];DB.rooms=DB.rooms||[];DB.needs=DB.needs||[];DB.xfers=DB.xfers||[];DB.stock=DB.stock||[];DB.smov=DB.smov||[];DB.deliv=DB.deliv||[];DB.arch=DB.arch||[];DB.alumni=DB.alumni||[];DB.cx=DB.cx||{};DB.reqs=DB.reqs||[];DB.cximp=DB.cximp||[];DB.tt=DB.tt||{};DB.asub=DB.asub||{};DB.msub=DB.msub||{};DB.log=DB.log||[];DB.pub=DB.pub||{};DB.facil=DB.facil||{};DB.needs.forEach(n=>{n.seenBy=n.seenBy||[]});(DB.tinsp).forEach(r=>{if(r.status==='signed'&&r.rel===undefined)r.rel=Date.now();if(!r.byId){const i=DB.accounts.find(a=>a.role==='inspector');r.byId=i?i.id:'';r.byRole=r.byRole||'inspector'}});(DB.circulars||[]).forEach(c=>{c.readAt=c.readAt||{};c.rem=c.rem||{}})}if(!DB||!DB.schools||DB.v!==3){DB=seed();save()}if(DB.chain!==1){chainBackfill();save()}if(DB.msv!==2){migMarks();save()}}
+function load(){const raw=store.get(KEY);try{DB=raw?JSON.parse(raw):null}catch(e){DB=null}if(DB&&DB.v===3){DB.visits=DB.visits||[];DB.tinsp=DB.tinsp||[];DB.rooms=DB.rooms||[];DB.needs=DB.needs||[];DB.xfers=DB.xfers||[];DB.stock=DB.stock||[];DB.smov=DB.smov||[];DB.deliv=DB.deliv||[];DB.arch=DB.arch||[];DB.alumni=DB.alumni||[];DB.cx=DB.cx||{};DB.reqs=DB.reqs||[];DB.cximp=DB.cximp||[];DB.tt=DB.tt||{};DB.asub=DB.asub||{};DB.msub=DB.msub||{};DB.log=DB.log||[];DB.pub=DB.pub||{};DB.facil=DB.facil||{};DB.needs.forEach(n=>{n.seenBy=n.seenBy||[]});(DB.tinsp).forEach(r=>{if(r.status==='signed'&&r.rel===undefined)r.rel=Date.now();if(!r.byId){const i=DB.accounts.find(a=>a.role==='inspector');r.byId=i?i.id:'';r.byRole=r.byRole||'inspector'}});(DB.circulars||[]).forEach(c=>{c.readAt=c.readAt||{};c.rem=c.rem||{}})}if(!DB||!DB.schools||DB.v!==3){DB=seed();save()}if(DB.chain!==1){chainBackfill();save()}if(DB.msv!==2){migMarks();save()}if(fixCn())save()}
 let SAVES=0,STAGE=false,DEFER=false;
 /* التعديلات المباشرة (علامات، تقييم، ملاحظات…) تُبقى في الذاكرة حتى زر «حفظ» أو أي إجراء آخر أو مغادرة الصفحة؛ غيرها يُحفظ فورًا */
-function save(){SAVES++;if(STAGE){DEFER=true;return}store.set(KEY,JSON.stringify(DB));if(DEFER){DEFER=false;if(typeof svbar==='function')svbar()}}
+function save(){fixCn();SAVES++;if(STAGE){DEFER=true;return}store.set(KEY,JSON.stringify(DB));if(DEFER){DEFER=false;if(typeof svbar==='function')svbar()}}
 
 /* ---------- استعلامات ---------- */
 const school=id=>DB.schools.find(s=>s.id===id);
@@ -675,6 +675,18 @@ function migMarks(){if(!DB||DB.msv===2)return;
   DB.students.forEach(s=>{const m=DB.marks[s.id];if(!m)return;['e1','e2','e3'].forEach(k=>{const e=m[k];if(!e)return;const sc=schStu(s.id,k),ok={};
     sc.forEach(x=>{ok[x.id]=1;if(typeof e[x.id]==='number')e[x.id]=Math.min(x.mx,Math.round(e[x.id]*x.mx/20*4)/4)});Object.keys(e).forEach(i=>{if(!ok[i])delete e[i]})})});
   DB.msv=2}
+/* رقم النداء: رقم ثابت لكل تلميذ داخل قسمه، يُمنح تسلسليًا عند الإدخال. من لا رقم له، أو انتقل إلى قسم آخر (ترقية/تحويل)، يأخذ الرقم التالي بالترتيب الأبجدي */
+function fixCn(){
+  if(!DB||!DB.students)return false;
+  let bad=false;for(let i=0;i<DB.students.length;i++){const s=DB.students[i];if(!(s.cn>=1)||s.cnc!==s.cid){bad=true;break}}
+  if(!bad)return false;
+  const by={};DB.students.forEach(s=>{(by[s.cid]=by[s.cid]||[]).push(s)});
+  Object.keys(by).forEach(cid=>{const L=by[cid],good=s=>s.cn>=1&&s.cnc===cid;let m=L.filter(good).reduce((a,s)=>Math.max(a,s.cn),0);
+    L.filter(s=>!good(s)).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ar')).forEach(s=>{s.cn=++m;s.cnc=cid})});
+  return true;
+}
+const nextCn=cid=>DB.students.filter(s=>s.cid===cid).reduce((m,s)=>Math.max(m,s.cn||0),0)+1;
+const dn=s=>(typeof LG!=='undefined'&&LG==='fr'&&s.fr)?s.fr:s.name; /* اسم العرض: بالفرنسية إن كانت اللغة الفرنسية وكان للتلميذ اسم فرنسي */
 function annual(id){const v=['e1','e2','e3'].map(k=>examAvg(id,k)).filter(x=>x!=null);return v.length?r2(v.reduce((a,b)=>a+b,0)/v.length):null}
 const avgFor=(id,p)=>p==='y'?annual(id):examAvg(id,p);
 function subjAnnual(id,sub){const m=DB.marks[id]||{};const v=['e1','e2','e3'].map(k=>m[k]&&m[k][sub]).filter(x=>typeof x==='number');return v.length?r2(v.reduce((a,b)=>a+b,0)/v.length):null}
@@ -801,6 +813,7 @@ function content(){
   }return homeView();
 }
 function render(){
+  fixCn();
   const y=window.scrollY,app=$('#app');
   if(!U){app.innerHTML=loginHTML();S.anim=false;return}
   guard();app.innerHTML=shell(content());S.anim=false;
@@ -2706,7 +2719,7 @@ const MCT=[['list','🎓','لائحة القسم'],['abs','📋','الغياب']
 /* ---- العلامات: جدول واحد يُستعمل في شاشة المعلم (تحرير) وفي شاشة المدير (عرض فقط) ---- */
 function marksBlock(cid,ed,selHtml){
   if(!/^e[123]$/.test(S.ex))S.ex='e1';const k=S.ex;
-  const ss=DB.students.filter(s=>s.cid===cid).sort(byName),rk=rankMap(ss,k);
+  const ss=DB.students.filter(s=>s.cid===cid).sort(byCn),rk=rankMap(ss,k);
   const lk=ed&&msubOf(cid,k)?'<div class="note">🔒 أصدرتَ علامات هذا الامتحان إلى المدير فهي مُقفلة. اسحب الإصدار من بطاقة «إصدار العلامات» لتعدّلها.</div>':'';
   return lk+`<div class="two">${selHtml}${fld('الامتحان',sel('e',['e1','e2','e3'].map(x=>[x,EXAMS[x]]),k,'data-c="resex"'))}</div>
   <div class="tw"><table class="stk"><thead><tr><th>#</th><th>الاسم</th>${schCls(cid,k).map(x=>`<th>${esc(x.n)}<small class="mxs">/${x.mx}</small></th>`).join('')}<th>المجموع<small class="mxs">/${schMx(schCls(cid,k))}</small></th><th>المعدل<small class="mxs">/20</small></th><th>الرتبة</th></tr></thead><tbody id="rt">${ss.map((s,i)=>resRow(s,i,ed&&!msubOf(cid,k),rk,k)).join('')||'<tr><td colspan="14" class="c mut">لا يوجد تلاميذ</td></tr>'}</tbody></table></div>`;
@@ -2715,18 +2728,18 @@ function marksBlock(cid,ed,selHtml){
 /* ---- لائحة القسم ---- */
 const sexOfName=n=>nTok(n).indexOf('بنت')>-1?'F':'M';
 function listHTML(sid,cid){
-  const sc=school(sid),c=DB.classes.find(x=>x.id===cid),ss=DB.students.filter(s=>s.cid===cid).sort(byName),b=ss.filter(s=>s.sex==='M').length;
+  const sc=school(sid),c=DB.classes.find(x=>x.id===cid),ss=DB.students.filter(s=>s.cid===cid).sort(byCn),b=ss.filter(s=>s.sex==='M').length;
   return `<div class="paper sheet">${lh3()}<h2>لائحة تلاميذ ${esc(c.name)}</h2><div class="c mut">${esc(sc.name)} · السنة الدراسية ${esc(DB.meta.year)}</div>
-  <div class="tw" style="margin-top:8px"><table class="kt"><thead><tr><th>#</th><th class="l">الاسم الكامل</th><th>الجنس</th><th>الرقم المدرسي</th><th>الرقم الوطني</th></tr></thead><tbody>${ss.map((s,i)=>`<tr><td>${i+1}</td><td class="l">${esc(s.name)}</td><td>${s.sex==='M'?'ذكر':'أنثى'}</td><td>${esc(s.no)}</td><td>${esc(s.nat||'—')}</td></tr>`).join('')||'<tr><td colspan="5" class="c mut">لا يوجد تلاميذ</td></tr>'}</tbody></table></div>
+  <div class="tw" style="margin-top:8px"><table class="kt"><thead><tr><th>#</th><th class="l">الاسم الكامل</th><th>الجنس</th><th>الرقم المدرسي</th><th>الرقم الوطني</th></tr></thead><tbody>${ss.map(s=>`<tr><td>${s.cn}</td><td class="l">${esc(dn(s))}</td><td>${s.sex==='M'?'ذكر':'أنثى'}</td><td>${esc(s.no)}</td><td>${esc(s.nat||'—')}</td></tr>`).join('')||'<tr><td colspan="5" class="c mut">لا يوجد تلاميذ</td></tr>'}</tbody></table></div>
   <p><b>عدد التلاميذ:</b> ${ss.length} (ذكور ${b} · إناث ${ss.length-b})</p>
   <div class="sig"><div>المعلم(ون)<br><small>${esc(DB.teachers.filter(t=>t.cids.indexOf(cid)>-1).map(t=>t.name).join('، '))}</small></div><div>مدير المدرسة<br><small>${esc(sc.director||'')}</small></div></div></div>`;
 }
 function mcList(c){
-  const ss=DB.students.filter(s=>s.cid===c.id).sort(byName),b=ss.filter(s=>s.sex==='M').length;
+  const ss=DB.students.filter(s=>s.cid===c.id).sort(byCn),b=ss.filter(s=>s.sex==='M').length;
   return `<div class="card"><div class="row"><h3>🎓 لائحة ${esc(c.name)} (${ss.length})</h3></div>
   <div><span class="chip">ذكور ${b}</span><span class="chip">إناث ${ss.length-b}</span></div>
   <div class="acts"><button class="btn pri" data-a="addstu">➕ تلميذ</button><button class="btn sec" data-a="mc_bulk">📋 إضافة قائمة أسماء</button></div></div>
-  <div class="card">${ss.map((s,i)=>`<div class="sc"><div class="row"><span><b>${i+1}.</b> <b>${esc(s.name)}</b></span><span style="white-space:nowrap"><button class="btn sm sec" data-a="editstu" data-id="${s.id}">✏️</button> <button class="btn sm dan" data-a="delstu" data-id="${s.id}">🗑️</button></span></div>
+  <div class="card">${ss.map(s=>`<div class="sc"><div class="row"><span><b>${s.cn}.</b> <b>${esc(s.name)}</b>${s.fr?` <small class="mut" dir="ltr">${esc(s.fr)}</small>`:''}</span><span style="white-space:nowrap"><button class="btn sm sec" data-a="editstu" data-id="${s.id}">✏️</button> <button class="btn sm dan" data-a="delstu" data-id="${s.id}">🗑️</button></span></div>
     <small>${s.sex==='M'?'ذكر':'أنثى'} · الرقم المدرسي ${esc(s.no||'—')}${s.nat?' · الوطني '+esc(s.nat):''}</small></div>`).join('')||'<div class="empty">لا يوجد تلاميذ بعد. أضف تلميذًا أو الصق قائمة الأسماء.</div>'}</div>`;
 }
 function bulkForm(){
@@ -2742,8 +2755,8 @@ function bulkForm(){
       });
       if(!add.length)return{err:'لا توجد أسماء جديدة (الأسماء الموجودة في القسم تُتجاهل)'};
       if(add.length>80)return{err:'الحد 80 اسمًا في المرة الواحدة'};
-      let n=DB.students.filter(s=>s.sid===c.sid).length;
-      add.forEach(nm=>{n++;DB.students.push({id:uid('st'),sid:c.sid,cid:c.id,name:nm,sex:sexOfName(nm),no:String(n).padStart(3,'0'),nat:''})});
+      let n=DB.students.filter(s=>s.sid===c.sid).length,k=nextCn(c.id);
+      add.forEach(nm=>{n++;DB.students.push({id:uid('st'),sid:c.sid,cid:c.id,name:nm,sex:sexOfName(nm),no:String(n).padStart(3,'0'),nat:'',cn:k,cnc:c.id});k++}); /* بترتيب اللصق: رقم نداء تسلسلي */
       save();audit('إضافة قائمة تلاميذ إلى '+c.name+' ('+add.length+')',c.sid);toast('أُضيف '+add.length+' تلميذًا ✅');return{noaudit:true}},'➕ إضافة');
 }
 
@@ -2921,7 +2934,7 @@ function absStatusChip(d,c){
   return '<span class="chip warn">⏳ لم يُصدر بعد</span>';
 }
 function absRows(c,d,ed){
-  const ss=DB.students.filter(s=>s.cid===c.id).sort(byName),ab=new Set(DB.sAbs.filter(a=>a.date===d&&a.cid===c.id).map(a=>a.stid));
+  const ss=DB.students.filter(s=>s.cid===c.id).sort(byCn),ab=new Set(DB.sAbs.filter(a=>a.date===d&&a.cid===c.id).map(a=>a.stid));
   return{n:ab.size,t:ss.length,html:ss.map(s=>`<label class="sabs ${ab.has(s.id)?'abs':''}"><input type="checkbox" data-c="sabs" data-id="${s.id}" ${ab.has(s.id)?'checked':''} ${ed?'':'disabled'}><span class="grow">${esc(s.name)}</span><small>${ab.has(s.id)?'غائب':''}</small></label>`).join('')||'<small>لا يوجد تلاميذ</small>'};
 }
 function mcAbs(c,csel){
@@ -5307,6 +5320,22 @@ FRD.push(`
 إصدار طلب معلم إلى المفتشية=transmission d'une demande d'enseignant à l'inspection
 سحب طلب من المفتشية=retrait d'une demande auprès de l'inspection
 `);
+/* قاموس الترجمة الفرنسية — القسم 11: نافذة إدخال التلاميذ المتتابع ورقم النداء
+   (المفاتيح لا تحوي علامات ترقيم ولا تشكيلًا؛ الجمل ذات الترقيم تُكتب بصيغة @ للمطابقة الكاملة) */
+FRD.push(`
+تلميذ جديد=nouvel élève
+تعديل التلميذ=modifier l'élève
+اسم التلميذ بالعربية=nom de l'élève en arabe
+الاسم بالفرنسية=nom en français
+حفظ وتلميذ جديد=enregistrer et élève suivant
+إنهاء=terminer
+المسجلون في هذه الجلسة=enregistrés dans cette session
+آخرهم=dernier
+الاسم بالعربية مطلوب=le nom en arabe est obligatoire
+@رقم النداء عدد صحيح من 1 إلى 999=Le numéro d'appel est un entier de 1 à 999
+مستعمل في هذا القسم للتلميذ=déjà utilisé dans cette classe pour l'élève
+قسم غير صالح=classe invalide
+`);
 /* ============ تبديل اللغة: عربي / Français ============
    الواجهة تُبنى بالعربية ثم تُترجم عند العرض بقاموس عبارات (FRD). ما لا يوجد في القاموس
    (كأسماء الأشخاص والمدارس المُدخلة) يبقى كما كُتب. الترويسة الرسمية (data-nt) لا تُترجم. */
@@ -5402,6 +5431,7 @@ frLoad();applyLang();
 /* =====================  وحدة المدرسة (نفس الخصائص لكل مدرسة)  ===================== */
 function pickCls(key,cls){if(!S[key]||!cls.some(c=>c.id===S[key]))S[key]=cls[0]?cls[0].id:null;return S[key]}
 const byName=(a,b)=>a.name.localeCompare(b.name,'ar');
+const byCn=(a,b)=>((a.cn||1e9)-(b.cn||1e9))||byName(a,b); /* بحسب رقم النداء الثابت في القسم */
 function schoolView(){
   const sid=S.sid,sc=sid&&school(sid);
   if(!sc||!canView(sid))return'<div class="card err">🚫 لا تملك صلاحية عرض هذه المدرسة.</div>';
@@ -5453,11 +5483,9 @@ function stBody(sid,ed){
   const cm={};DB.classes.filter(c=>c.sid===sid).forEach(c=>{cm[c.id]=c});
   let l=DB.students.filter(s=>s.sid===sid);
   if(S.fc!=='all'&&cm[S.fc])l=l.filter(s=>s.cid===S.fc);
-  const q=S.q.trim();if(q)l=l.filter(s=>(s.name+' '+s.no+' '+s.nat).indexOf(q)>-1);
-  /* رقم النداء = ترتيب التلميذ في قسمه نفسه (ثابت، لا يتغير بالبحث ولا بتصفية الأقسام) */
-  const cnm={};l.forEach(s=>{if(!cnm[s.cid]){cnm[s.cid]={};clsStu(s.cid).forEach((x,i)=>{cnm[s.cid][x.id]=i+1})}});
-  l.sort((a,b)=>((cm[a.cid]||{level:99}).level-(cm[b.cid]||{level:99}).level)||((cm[a.cid]||{}).name||'').localeCompare((cm[b.cid]||{}).name||'','ar')||(cnm[a.cid][a.id]-cnm[b.cid][b.id]));
-  return{n:l.length,html:l.map(s=>`<tr><td>${cnm[s.cid][s.id]}</td><td>${esc(s.name)}</td><td>${s.sex==='M'?'ذكر':'أنثى'}</td><td>${esc(s.no)}</td><td>${esc(s.nat)}</td><td>${esc((cm[s.cid]||{}).name||'—')}</td>
+  const q=S.q.trim();if(q)l=l.filter(s=>(s.name+' '+(s.fr||'')+' '+s.no+' '+s.nat).indexOf(q)>-1);
+  l.sort((a,b)=>((cm[a.cid]||{level:99}).level-(cm[b.cid]||{level:99}).level)||((cm[a.cid]||{}).name||'').localeCompare((cm[b.cid]||{}).name||'','ar')||byCn(a,b));
+  return{n:l.length,html:l.map(s=>`<tr><td>${s.cn}</td><td>${esc(s.name)}${s.fr?`<small class="mut" dir="ltr" style="display:block;text-align:left">${esc(s.fr)}</small>`:''}</td><td>${s.sex==='M'?'ذكر':'أنثى'}</td><td>${esc(s.no)}</td><td>${esc(s.nat)}</td><td>${esc((cm[s.cid]||{}).name||'—')}</td>
    ${ed?`<td style="white-space:nowrap"><button class="btn sm sec" data-a="editstu" data-id="${s.id}">✏️</button> <button class="btn sm dan" data-a="delstu" data-id="${s.id}">🗑️</button></td>`:''}</tr>`).join('')||`<tr><td colspan="7" class="c mut">لا توجد نتائج</td></tr>`};
 }
 function studentsTab(sid,ed){
@@ -5471,14 +5499,38 @@ function stuForm(id){
   const sid=S.sid;let cls=sortCls(DB.classes.filter(c=>c.sid===sid));
   if(U.role==='teacher')cls=cls.filter(c=>ownsCls(c.id)); /* المعلم يضيف إلى أقسامه فقط */
   if(!cls.length){toast('أضف قسمًا أولاً');return}
-  const pc=U.role==='teacher'?S.mcc:S.fc;
-  const s=id?DB.students.find(x=>x.id===id):{name:'',sex:'M',cid:cls.some(c=>c.id===pc)?pc:cls[0].id,no:String(DB.students.filter(x=>x.sid===sid).length+1).padStart(3,'0'),nat:''};
-  openModal(id?'✏️ تعديل التلميذ':'➕ تلميذ جديد',fld('الاسم الكامل',inp('name',s.name,'required'))+fld('الجنس',sel('sex',[['M','ذكر'],['F','أنثى']],s.sex))+fld('القسم',sel('cid',cls.map(c=>[c.id,c.name]),s.cid))+fld('الرقم المدرسي',inp('no',s.no))+fld('الرقم الوطني',inp('nat',s.nat,'inputmode="numeric"')),fd=>{
-    const name=String(fd.get('name')).trim();if(!name)return{err:'الاسم مطلوب'};
-    const cid=fd.get('cid');if(!cls.some(c=>c.id===cid))return{err:'قسم غير صالح'};
-    const o={name,sex:fd.get('sex')==='F'?'F':'M',cid,no:String(fd.get('no')).trim(),nat:String(fd.get('nat')).trim()};
-    if(id){const old=s.cid;Object.assign(s,o);if(old!==cid)DB.sAbs.forEach(a=>{if(a.stid===id)a.cid=cid})}else DB.students.push(Object.assign({id:uid('st'),sid},o));
-    save();toast('تم الحفظ ✅')});
+  const pc=U.role==='teacher'?S.mcc:S.fc,old=id?DB.students.find(x=>x.id===id):null;
+  if(id&&!old)return;
+  const cid0=old?old.cid:(cls.some(c=>c.id===pc)?pc:cls[0].id),noDef=()=>String(DB.students.filter(x=>x.sid===sid).length+1).padStart(3,'0');
+  let cnt=0;
+  /* إدخال متتابع: الحفظ يُبقي النافذة مفتوحة لتلميذ جديد برقم نداء تالٍ؛ «إنهاء» تغلقها */
+  openModal(id?'✏️ تعديل التلميذ':'➕ تلميذ جديد',
+    (id?'':'<div class="note" id="stcnt" style="margin:0 0 8px;display:none"></div>')
+    +fld('اسم التلميذ بالعربية',inp('name',old?old.name:'','required data-i="stuname" autocomplete="off"'))
+    +fld('الاسم بالفرنسية',inp('fr',old?old.fr||'':'','dir="ltr" autocomplete="off" placeholder="Nom et prénom"'))
+    +`<div class="two">${fld('رقم النداء',inp('cn',old?old.cn:nextCn(cid0),'type="number" min="1" max="999" inputmode="numeric" required'))}${fld('الرقم المدرسي',inp('no',old?old.no:noDef()))}</div>`
+    +fld('الرقم الوطني',inp('nat',old?old.nat:'','inputmode="numeric"'))
+    +`<div class="two">${fld('الجنس',sel('sex',[['M','ذكر'],['F','أنثى']],old?old.sex:'M','data-c="stusex"'))}${fld('القسم',sel('cid',cls.map(c=>[c.id,c.name]),cid0,'data-c="stucls"'))}</div>`,
+    fd=>{
+      const name=String(fd.get('name')||'').replace(/\s+/g,' ').trim();if(!name)return{err:'الاسم بالعربية مطلوب'};
+      const cid=fd.get('cid');if(!cls.some(c=>c.id===cid))return{err:'قسم غير صالح'};
+      const cn=parseInt(fd.get('cn'),10);if(!(cn>=1&&cn<=999))return{err:'رقم النداء عدد صحيح من 1 إلى 999'};
+      const dup=DB.students.find(x=>x.cid===cid&&x.cn===cn&&x.id!==id);if(dup)return{err:`رقم النداء ${cn} مستعمل في هذا القسم للتلميذ «${dup.name}»`};
+      const o={name,fr:String(fd.get('fr')||'').replace(/\s+/g,' ').trim(),sex:fd.get('sex')==='F'?'F':'M',cid,cn,cnc:cid,no:String(fd.get('no')||'').trim(),nat:String(fd.get('nat')||'').trim()};
+      if(id){const was=old.cid;Object.assign(old,o);if(was!==cid)DB.sAbs.forEach(a=>{if(a.stid===id)a.cid=cid})}
+      else DB.students.push(Object.assign({id:uid('st'),sid},o));
+      save();
+      if(id){toast('تم الحفظ ✅');return}
+      cnt++;
+      return{keep:f=>{
+        const q=n=>f.querySelector(`[name=${n}]`),sx=q('sex');
+        q('name').value='';q('fr').value='';q('nat').value='';q('cn').value=nextCn(cid);q('no').value=noDef();sx.value='M';delete sx.dataset.man;
+        const c=$('#stcnt');if(c){c.style.display='';c.textContent=`✅ المسجلون في هذه الجلسة: ${cnt} — آخرهم: ${name}`}
+        const e=$('#merr');if(e)e.textContent='';q('name').focus();
+      }};
+    },id?'💾 حفظ':'💾 حفظ وتلميذ جديد');
+  const fm=$('#mf');if(old&&fm){fm.dataset.ocid=old.cid;fm.dataset.ocn=old.cn}
+  if(!id){const b=$('#mb [data-a=mclose]');if(b)b.textContent='✔️ إنهاء';setTimeout(()=>{const n=$('#mf [name=name]');if(n)n.focus()},60)}
 }
 
 /* ---- المعلمون ---- */
@@ -5520,7 +5572,7 @@ function attTab(sid){
 /* ---- النتائج: علامات المواد لكل امتحان ---- */
 function resRow(s,i,ed,rk,k){
   const m=(DB.marks[s.id]||{})[k]||{},v=examAvg(s.id,k),t=examTot(s.id,k);
-  return `<tr><td>${i+1}</td><td>${esc(s.name)}</td>${schStu(s.id,k).map(x=>`<td>${ed?`<input class="gin" type="number" inputmode="decimal" step="0.25" min="0" max="${x.mx}" value="${m[x.id]==null?'':m[x.id]}" data-c="mark" data-id="${s.id}" data-k="${k}" data-s="${x.id}" aria-label="${esc(x.n)}">`:fmtM(m[x.id])}</td>`).join('')}<td data-r="tot" data-id="${s.id}">${fmtM(t)}</td><td data-r="avg" data-id="${s.id}"><b>${fmtM(v)}</b></td><td data-r="rk" data-id="${s.id}">${rk[s.id]||'—'}</td></tr>`;
+  return `<tr><td>${s.cn||i+1}</td><td>${esc(dn(s))}</td>${schStu(s.id,k).map(x=>`<td>${ed?`<input class="gin" type="number" inputmode="decimal" step="0.25" min="0" max="${x.mx}" value="${m[x.id]==null?'':m[x.id]}" data-c="mark" data-id="${s.id}" data-k="${k}" data-s="${x.id}" aria-label="${esc(x.n)}">`:fmtM(m[x.id])}</td>`).join('')}<td data-r="tot" data-id="${s.id}">${fmtM(t)}</td><td data-r="avg" data-id="${s.id}"><b>${fmtM(v)}</b></td><td data-r="rk" data-id="${s.id}">${rk[s.id]||'—'}</td></tr>`;
 }
 function resultsTab(sid){
   if(U.role!=='director'||U.sid!==sid)return sheetsTab(sid);
@@ -5540,7 +5592,7 @@ const periodLabel=p=>p==='y'?'المعدل السنوي (الامتحانات ا
 /* ===== نموذج الكشوف المدرسية (مطابق لنموذج «المنصة المدرسية»): كشف القسم A4 عموديًا + كشف فردي، اثنان في كل صفحة ===== */
 const EXT={e1:'امتحان الفصل الأول',e2:'امتحان الفصل الثاني',e3:'امتحان الفصل الثالث',y:'المعدل السنوي للامتحانات الثلاثة'};
 const KPG=20; /* عدد التلاميذ في صفحة كشف القسم */
-const clsStu=cid=>DB.students.filter(s=>s.cid===cid).sort(byName);
+const clsStu=cid=>DB.students.filter(s=>s.cid===cid).sort(byCn);
 const totY=id=>{const v=['e1','e2','e3'].map(k=>examTot(id,k)).filter(x=>x!=null);return v.length?r2(v.reduce((a,b)=>a+b,0)/v.length):null};
 const resCell=v=>v==null?'':v>=10?`<b class="kok">ناجح</b><br><i>${remark(v)}</i>`:'<b class="kno">راسب</b>';
 /* الرأسية الرسمية: يمينًا الجمهورية والوزارة والإدارة الجهوية والمفتشية، في الوسط الشعار، يسارًا الشعار الوطني للدولة والسنة والمدرسة والقسم */
@@ -5557,10 +5609,10 @@ function sheetHTML(sid,cid,p){
       :sch.map(x=>rot(`${esc(x.n)} / ${x.mx}`)).join('')+rot(`المجموع / ${schMx(sch)}`)+rot('المعدل / 20'))+rot('النتيجة')+'</tr>';
   const cols=Y?[5,5,26,14,10,10,10,12,8]:[4,4,21,10].concat(sch.map(()=>(43.2/sch.length)),[5,5,7.5]);
   /* كشف الدرجات مرتّب بالرتبة (الأول فالثاني…)، ولكل تلميذ رقم ندائه الثابت في القسم؛ المتساوون بحسب رقم النداء ومن لا علامات له في الآخر */
-  const rows=ss.map((s,i)=>({s,cn:i+1})).sort((a,b)=>((rk[a.s.id]||9999)-(rk[b.s.id]||9999))||(a.cn-b.cn)).map(({s,cn})=>{const v=avgFor(s.id,p),m=(DB.marks[s.id]||{})[p]||{};
+  const rows=ss.map(s=>({s,cn:s.cn})).sort((a,b)=>((rk[a.s.id]||9999)-(rk[b.s.id]||9999))||(a.cn-b.cn)).map(({s,cn})=>{const v=avgFor(s.id,p),m=(DB.marks[s.id]||{})[p]||{};
     const mid=Y?['e1','e2','e3'].map(k=>`<td>${fmtM(examAvg(s.id,k))}</td>`).join('')+`<td><b>${fmtM(v)}</b></td>`
       :sch.map(x=>`<td>${fmtM(m[x.id])}</td>`).join('')+`<td>${fmtM(examTot(s.id,p))}</td><td><b>${fmtM(v)}</b></td>`;
-    return `<tr><td>${rk[s.id]||'—'}</td><td>${cn}</td><td class="knm">${esc(s.name)}</td><td>${esc(s.no||'—')}</td>${mid}<td class="kr">${resCell(v)}</td></tr>`});
+    return `<tr><td>${rk[s.id]||'—'}</td><td>${cn}</td><td class="knm">${esc(dn(s))}</td><td>${esc(s.no||'—')}</td>${mid}<td class="kr">${resCell(v)}</td></tr>`});
   const np=Math.max(1,Math.ceil(rows.length/KPG)),tn=DB.teachers.filter(t=>t.cids.indexOf(cid)>-1).map(t=>t.name).join('، '),t2=(a,f)=>LG==='fr'?f:a;
   const pages=[];
   for(let i=0;i<np;i++){
@@ -5589,13 +5641,13 @@ function kcard(s,c,sc,p,rk,n,cn){
       return `<tr><td class="ks">${l[0]}</td><td>${l[1]}</td>${extra}</tr>`}).join('')+'</tbody></table>';
   }
   return `<div class="kcard">${shHead(sc,c,52)}<div class="kex">${esc(EXT[p])}</div><div class="kpill">كشف الدرجات</div>
-  <div class="kinf"><span>الاسم الكامل: <b>${esc(s.name)}</b></span><span>الرقم المدرسي: <b>${esc(s.no||'—')}</b></span><span>رقم النداء: <b>${cn}</b></span></div>
+  <div class="kinf"><span>الاسم الكامل: <b>${esc(dn(s))}</b></span><span>الرقم المدرسي: <b>${esc(s.no||'—')}</b></span><span>رقم النداء: <b>${cn}</b></span></div>
   <div class="krkw"><div class="krk">الرتبة: <b>${rk[s.id]||'—'}</b></div></div>${tbl}
   <div class="ksig"><span>المعلم / المعلمة: ${esc(tn)}</span><span>المدير: ${esc(sc.director||'')}</span></div></div>`;
 }
 function cardsHTML(sid,cid,p){
   const sc=school(sid),c=DB.classes.find(x=>x.id===cid),ss=clsStu(cid),rk=rankMap(ss,p);
-  const L=ss.map((s,i)=>({s,cn:i+1})).sort((a,b)=>((rk[a.s.id]||9999)-(rk[b.s.id]||9999))||(a.cn-b.cn)); /* بحسب الرتبة؛ من لا علامات له في الآخر */
+  const L=ss.map(s=>({s,cn:s.cn})).sort((a,b)=>((rk[a.s.id]||9999)-(rk[b.s.id]||9999))||(a.cn-b.cn)); /* بحسب الرتبة؛ من لا علامات له في الآخر */
   return ss.length?`<div class="kcards">${L.map(x=>kcard(x.s,c,sc,p,rk,ss.length,x.cn)).join('')}</div>`:'<div class="card empty">لا يوجد تلاميذ في هذا القسم</div>';
 }
 function kashfTab(sid){
@@ -5677,6 +5729,8 @@ const CHG={
   absfilter(el){S.absFilter=el.value;render()},
   attcls(el){S.ac=el.value;render()},
   stcls(el){S.fc=el.value;render()},
+  stucls(el){const f=el.form,c=f&&f.querySelector('[name=cn]');if(c)c.value=(f.dataset.ocid===el.value)?f.dataset.ocn:nextCn(el.value)}, /* تغيير القسم يعيد حساب رقم النداء التالي فيه */
+  stusex(el){el.dataset.man='1'},
   rescls(el){S.rc=el.value;render()},
   sabs(el){const st=DB.students.find(s=>s.id===el.dataset.id);if(!st||!canAbs(st.cid,S.date)){render();return}
     const i=DB.sAbs.findIndex(a=>a.stid===st.id&&a.date===S.date);if(el.checked&&i<0)DB.sAbs.push({sid:st.sid,cid:st.cid,stid:st.id,date:S.date});if(!el.checked&&i>-1)DB.sAbs.splice(i,1);save();render()},
@@ -5710,6 +5764,8 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{const el=e.target,c=el.dataset&&el.dataset.c;if(c&&CHG[c]){const s0=SAVES;CHG[c](el);auditChg(c,s0,el)}});
 document.addEventListener('input',e=>{const el=e.target;if(!el.dataset)return;if(el.dataset.i==='stq'){S.q=el.value;const b=stBody(S.sid,canEdit(S.sid));$('#stl').innerHTML=b.html;$('#stn').textContent=b.n}else if(el.dataset.i==='tf'||el.dataset.i==='tfinal')tInput(el)});
+/* كتابة اسم التلميذ تقترح الجنس (بنت ← أنثى) ما لم يغيّره المستخدم بنفسه */
+document.addEventListener('input',e=>{const el=e.target;if(!el.dataset||el.dataset.i!=='stuname')return;const sx=el.form&&el.form.querySelector('[name=sex]');if(sx&&!sx.dataset.man)sx.value=sexOfName(el.value)});
 document.addEventListener('submit',e=>{
   const f=e.target;
   if(f.id==='lf'){e.preventDefault();const fd=new FormData(f),u=String(fd.get('u')).trim().toLowerCase(),p=String(fd.get('p'));
@@ -5721,7 +5777,7 @@ document.addEventListener('submit',e=>{
   if(f.id==='mf'){e.preventDefault();if(!modalSave)return;
     const btn=f.querySelector('button[type=submit]');
     const ttl=arText($('#mt')),fd=new FormData(f),cp=$('#mb p'),conf=cp?arText(cp):'',s0=SAVES;
-    const done=r=>{if(btn)btn.disabled=false;if(r&&r.err){const m=$('#merr');if(m)m.textContent=r.err;return}closeModal();if(SAVES!==s0&&!(r&&r.noaudit))auditModal(ttl,fd,conf);render()};
+    const done=r=>{if(btn)btn.disabled=false;if(r&&r.err){const m=$('#merr');if(m)m.textContent=r.err;return}const keep=r&&r.keep;if(!keep)closeModal();if(SAVES!==s0&&!(r&&r.noaudit))auditModal(ttl,fd,conf);render();if(typeof keep==='function')keep(f)};
     const r=modalSave(fd);
     if(r&&typeof r.then==='function'){if(btn)btn.disabled=true;r.then(done,()=>{if(btn)btn.disabled=false;toast('تعذّر تنفيذ العملية')});return}
     done(r);
