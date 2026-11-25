@@ -54,6 +54,15 @@ a{color:var(--g7)}
 .out{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer}
 .lng{background:var(--fy);color:#2f2400;border:0;border-radius:6px;min-width:36px;height:32px;padding:0 6px;font-weight:800;font-size:.78rem;cursor:pointer;flex:none;font-family:'Cairo',sans-serif;letter-spacing:.3px}
 .lng:active{filter:brightness(.92)}
+.rfb{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:6px;min-width:34px;height:32px;padding:0 6px;font-size:1rem;cursor:pointer;flex:none}
+.rfb:active{background:rgba(255,255,255,.3)}
+.rfb.new{background:var(--fy);color:#2f2400;animation:rfp 1.4s ease-in-out infinite}
+@keyframes rfp{50%{box-shadow:0 0 0 5px rgba(255,214,0,.35)}}
+.rfi{background:#eef6f1;border:1px solid #cfe3d7;color:inherit;border-radius:6px;font-size:.78rem;padding:2px 7px;margin-inline-start:8px;cursor:pointer;vertical-align:middle;line-height:1.3;font-family:inherit}
+.rfi:active{background:#dcebe2}
+.rfl{margin-top:12px;text-align:center}
+.hb{display:flex;flex-direction:column;gap:3px;flex:none}
+.hb .lng,.hb .rfb{height:28px;min-width:40px;padding:0 6px;display:flex;align-items:center;justify-content:center;line-height:1}
 main{max-width:1020px;margin:0 auto;padding:14px 12px 24px}
 .foot{text-align:center;color:var(--mut);font-size:.76rem;padding:14px 10px 28px;border-top:3px double var(--g2);margin-top:10px}
 .foot b{color:var(--g8);display:block}
@@ -156,7 +165,7 @@ table.tt{table-layout:fixed;width:100%}table.tt td{font-size:.72rem;vertical-ali
 @media(min-width:960px){
  .ib.menu,.ov,.drawer .dh .ib{display:none!important}
  .usr{display:flex}
- :root{--hh:84px}.bt em{display:block}.bt small{font-size:.74rem}.bt small i{display:inline;margin-inline-start:10px}.bt b{font-size:1.2rem}.oh>div{font-size:.8rem}.oh b{font-size:.95rem}
+ :root{--hh:84px}.hb{flex-direction:row;gap:8px}.hb .lng,.hb .rfb{height:34px}.bt em{display:block}.bt small{font-size:.74rem}.bt small i{display:inline;margin-inline-start:10px}.bt b{font-size:1.2rem}.oh>div{font-size:.8rem}.oh b{font-size:.95rem}
  .drawer{visibility:visible;transform:none;top:calc(var(--rh) + var(--hh) + 7px);width:250px;max-width:none;box-shadow:none;border-left:1px solid var(--line);z-index:20}
  main,.foot{margin-right:250px!important;max-width:none}
  main{padding:20px 28px 24px}
@@ -804,10 +813,11 @@ function shell(content){
   return `<div class="top noprint"><div class="ribbon">🧪 نسخة تجريبية — بيانات وهمية تُحفظ في هذا المتصفح فقط</div>
   <header class="appbar"><button class="ib menu" data-a="menu" aria-label="القائمة">☰</button>
   <div class="brand">${emblem(40)}<div class="bt"><small>${ORG.ar.rep}<i>${ORG.ar.motto}</i></small><b>${ORG.ar.insp}</b><em>${ORG.ar.reg}</em></div></div>
-  <button class="lng" data-a="lang" data-nt aria-label="Français / العربية">${LG==='fr'?'عربي':'FR'}</button>
+  <div class="hb"><button class="lng" data-a="lang" data-nt aria-label="Français / العربية">${LG==='fr'?'عربي':'FR'}</button>
+  <button class="rfb ${RF.newVer?'new':''}" data-a="refresh" title="تحديث" aria-label="تحديث">🔄</button></div>
   <div class="usr"><div><b>${esc(U.name)}</b><small>${ROLES[U.role]}</small></div><button class="out" data-a="logout">🚪 خروج</button></div></header><div class="band"></div></div>
   <div class="ov noprint" id="ov" data-a="menu"></div>
-  <nav class="drawer noprint" id="drawer"><div class="dh"><div><b>${esc(U.name)}</b><small>${ROLES[U.role]}${sc?' — '+esc(sc.name):''}</small></div><button class="ib" data-a="menu" aria-label="إغلاق">✕</button></div>${items}${IP?'<button class="mi" data-a="b_install"><span>📲</span><span class="grow">تثبيت التطبيق</span></button>':''}<button class="mi" data-a="logout"><span>🚪</span><span class="grow">تسجيل الخروج</span></button></nav>
+  <nav class="drawer noprint" id="drawer"><div class="dh"><div><b>${esc(U.name)}</b><small>${ROLES[U.role]}${sc?' — '+esc(sc.name):''}</small></div><button class="ib" data-a="menu" aria-label="إغلاق">✕</button></div>${items}<button class="mi" data-a="refresh"><span>🔄</span><span class="grow">تحديث المنصة</span></button>${IP?'<button class="mi" data-a="b_install"><span>📲</span><span class="grow">تثبيت التطبيق</span></button>':''}<button class="mi" data-a="logout"><span>🚪</span><span class="grow">تسجيل الخروج</span></button></nav>
   <main class="${S.anim?'anim':''}">${ph}${content}</main>
   <footer class="foot noprint"><b>${ORG.ar.insp}</b>${ORG.ar.reg} · نسخة تجريبية</footer>`;
 }
@@ -829,10 +839,11 @@ function content(){
 function render(){
   fixCn();
   const y=window.scrollY,app=$('#app');
-  if(!U){app.innerHTML=loginHTML();S.anim=false;return}
+  if(!U){app.innerHTML=loginHTML();S.anim=false;navSave();return}
   guard();app.innerHTML=shell(content());S.anim=false;
   const t=$('.tabs .on');if(t&&t.scrollIntoView)t.scrollIntoView({inline:'center',block:'nearest'});
   window.scrollTo(0,y);
+  rfInject();navSave();
 }
 function go(v,x){if(v!=='tedit'&&v!=='tview')S.tbk=null;Object.assign(S,{view:v},x||{});S.anim=true;render();window.scrollTo(0,0)}
 
@@ -857,7 +868,7 @@ function loginHTML(){
   <div class="hero"><div class="lsw" data-nt><button data-a="lang" data-l="ar" class="${LG==='ar'?'on':''}">العربية</button><button data-a="lang" data-l="fr" class="${LG==='fr'?'on':''}">Français</button></div>
   <div class="oh"><div class="ar" data-nt><b>${ORG.ar.rep}</b><i>${ORG.ar.motto}</i><span>${ORG.ar.min}</span><span>${ORG.ar.reg}</span><span>${ORG.ar.insp}</span></div>${emblem(88)}<div class="fr" dir="ltr" data-nt><b>${ORG.fr.rep}</b><i>${ORG.fr.motto}</i><span>${ORG.fr.min}</span><span>${ORG.fr.reg}</span><span>${ORG.fr.insp}</span></div></div>
   <h1>البوابة الرقمية لمتابعة المدارس والبلديات</h1></div>
-  <div class="login">${body}</div>
+  <div class="login">${body}<div class="rfl noprint"><button type="button" class="btn sec sm" data-a="refresh">🔄 تحديث المنصة</button></div></div>
   <div class="foot lfoot"><b>${ORG.ar.insp}</b>نسخة تجريبية للعرض</div>`;
 }
 
@@ -3019,6 +3030,85 @@ const CHCHG={
   ttcell(el){const sid=S.sid;if(!canInfra(sid))return;const c=DB.classes.find(x=>x.id===el.dataset.cid);if(!c||c.sid!==sid)return;
     const e=ttSetCell(sid,c.id,+el.dataset.d,+el.dataset.p,el.value);if(e)toast('⚠️ '+e);else save();render()}
 };
+/* ============ تحديث المنصة: زر التحديث + حفظ مكان المستخدم عند تحديث الصفحة ============
+   • سحب الصفحة إلى الأسفل (أو F5) يعيد تحميلها؛ قبل ذلك كانت المنصة تعود إلى أول شاشة بعد الدخول.
+     الآن تُحفظ الشاشة الحالية ومرشّحاتها في sessionStorage (لهذا التبويب فقط) وتُستعاد بعد التحميل.
+   • زر 🔄 في الشريط العلوي والقائمة وشاشة الدخول وعناوين القوائم التي تصل إليها بيانات من الآخرين:
+     يعيد قراءة البيانات من التخزين ثم يفحص وجود نسخة جديدة من المنصة (عامل الخدمة) ويطبّقها دون أن يفقدك مكانك. */
+const NAVKEY='insp_nav_v1';
+let NAVY=0;
+const ssg={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
+function navSave(){
+  if(!U){ssg.del(NAVKEY);return}
+  try{const s=Object.assign({},S);delete s.anim;ssg.set(NAVKEY,JSON.stringify({u:U.id,s:s,y:Math.round(window.scrollY||0)}))}catch(e){}
+}
+function navRestore(){
+  const raw=ssg.get(NAVKEY);if(!raw||!U)return;
+  try{const n=JSON.parse(raw);if(n&&n.u===U.id&&n.s&&typeof n.s==='object'){Object.assign(S,n.s);S.anim=false;NAVY=n.y||0}}catch(e){}
+}
+/* رسم أول مرة بعد التحميل؛ إن فشلت الحالة المستعادة (سجلٌّ حُذف مثلًا) نعود إلى الشاشة الأولى بدل شاشة معطّلة */
+function bootRender(){
+  try{render()}catch(err){
+    ssg.del(NAVKEY);NAVY=0;resetS();
+    if(U){S.view=U.role==='teacher'?'myclass':U.role==='director'?'school':'home';S.sid=U.sid||null}
+    render();
+  }
+  if(NAVY){const y=NAVY;NAVY=0;requestAnimationFrame(()=>window.scrollTo(0,y))}
+}
+let navT=0;
+window.addEventListener('scroll',()=>{clearTimeout(navT);navT=setTimeout(()=>navSave(),250)},{passive:true});
+window.addEventListener('pagehide',()=>navSave());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')navSave()});
+
+/* ---------- زر التحديث ---------- */
+const RF={busy:false,manual:false,newVer:false,ctl:false};
+const hhmm=()=>new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+function rfMark(){document.querySelectorAll('.rfb').forEach(b=>b.classList.add('new'))}
+if('serviceWorker' in navigator){
+  RF.ctl=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    const first=!RF.ctl;RF.ctl=true;
+    if(RF.manual||first)return;                 /* التحديث اليدوي يعالجه swCheck؛ وأول تثبيت لا يحتاج إشعارًا */
+    RF.newVer=true;rfMark();toast('🆕 نسخة جديدة جاهزة — اضغط زر التحديث');
+  });
+}
+/* يفحص عامل الخدمة عن نسخة أحدث: 'new' وصلت نسخة جديدة، 'same' لا جديد، 'off' لا اتصال، 'na' غير متاح */
+function swCheck(){
+  return new Promise(res=>{
+    if(!('serviceWorker' in navigator)||!/^https?:$/.test(location.protocol))return res('na');
+    navigator.serviceWorker.getRegistration().then(reg=>{
+      if(!reg)return res('na');
+      if(RF.newVer)return res('new');
+      let done=false,t=0;
+      const fin=v=>{if(done)return;done=true;clearTimeout(t);navigator.serviceWorker.removeEventListener('controllerchange',cc);res(v)};
+      const cc=()=>fin('new');
+      navigator.serviceWorker.addEventListener('controllerchange',cc);
+      t=setTimeout(()=>fin('same'),8000);
+      reg.update().then(()=>{if(!reg.installing&&!reg.waiting)fin('same')},()=>fin('off'));
+    },()=>res('na'));
+  });
+}
+async function refreshApp(){
+  if(RF.busy)return;RF.busy=true;RF.manual=true;
+  try{
+    commitPending();
+    const id=U&&U.id;load();U=id?(DB.accounts.find(a=>a.id===id)||null):null;
+    if(id&&!U){store.del(SKEY);resetS()}
+    render();toast('🔄 جاري التحديث');
+    const r=await swCheck();
+    if(r==='new'){navSave();toast('🆕 نسخة جديدة — جاري تطبيقها');setTimeout(()=>location.reload(),700);return}
+    toast(r==='off'?'تم تحديث البيانات — تعذر فحص نسخة المنصة (لا اتصال)':'✅ تم التحديث '+hhmm()+(r==='same'?' — أنت على آخر نسخة':''));
+  }finally{RF.busy=false;RF.manual=false}
+}
+/* زر صغير داخل عنوان أول بطاقة في الشاشات التي تصلها بيانات من الآخرين */
+const RFV=new Set(['absence','circulars','reports','inspections','myinsp','mytr','needs','recv','stock','transfers','reqs','coverage','infra','stats']);
+function rfInject(){
+  if(!U||!RFV.has(S.view))return;
+  const h=document.querySelector('main .card:not(.paper) h2');if(!h||h.querySelector('.rfi'))return;
+  const b=document.createElement('button');b.type='button';b.className='rfi noprint';b.dataset.a='refresh';
+  b.title='تحديث';b.setAttribute('aria-label','تحديث');b.textContent='🔄';h.appendChild(b);
+}
+const RFACT={refresh(){refreshApp()}};
 /* =====================  الطلبات: المعلم ← المدير ← المفتشية  =====================
    المعلم يكتب طلبه ويُصدره إلى المدير بضغطة زر؛ والمدير يُصدره إلى المفتشية بضغطة زر؛ وترد المفتشية فيصل الردّ إلى المدير والمعلم.
    المسودة والطلب المُعاد لا يراهما إلا صاحبهما؛ وما عند المدير لا يراه المفتش حتى يُصدره المدير. */
@@ -5350,6 +5440,21 @@ FRD.push(`
 مستعمل في هذا القسم للتلميذ=déjà utilisé dans cette classe pour l'élève
 قسم غير صالح=classe invalide
 `);
+/* قاموس الترجمة الفرنسية — القسم 12: زر التحديث (المفاتيح بلا ترقيم ولا تشكيل) */
+FRD.push(`
+تحديث=actualiser
+تحديث المنصة=actualiser la plateforme
+جاري التحديث=actualisation en cours
+تم التحديث=mis à jour
+أنت على آخر نسخة=vous avez la dernière version
+تم تحديث البيانات=données actualisées
+تعذر فحص نسخة المنصة=impossible de vérifier la version de la plateforme
+لا اتصال=pas de connexion
+نسخة جديدة=nouvelle version
+جاري تطبيقها=application en cours
+نسخة جديدة جاهزة=nouvelle version disponible
+اضغط زر التحديث=appuyez sur le bouton d'actualisation
+`);
 /* ============ تبديل اللغة: عربي / Français ============
    الواجهة تُبنى بالعربية ثم تُترجم عند العرض بقاموس عبارات (FRD). ما لا يوجد في القاموس
    (كأسماء الأشخاص والمدارس المُدخلة) يبقى كما كُتب. الترويسة الرسمية (data-nt) لا تُترجم. */
@@ -5766,7 +5871,7 @@ const CHG={
   note(el){if(!canEdit(S.sid))return;const n=DB.notes[S.sid]=DB.notes[S.sid]||{notes:'',needs:''};n[el.dataset.k]=el.value;save();const p=$('#rp');if(p)p.innerHTML=reportHTML(buildReport(S.sid))},
   acrole(el){const f=$('#schfld'),g=$('#tchfld');if(f)f.classList.toggle('hide',el.value!=='director');if(g)g.classList.toggle('hide',el.value!=='teacher')}
 };
-Object.assign(ACT,TACT,CACT,RACT,PACT,IACT,XACT,SACT,YACT,BACT,KACT,MACT,CHACT,STACT,LANGACT,SVACT,QACT);Object.assign(CHG,TCHG,CCHG,ICHG,XCHG,SCHG,YCHG,BCHG,KCHG,MCHG,CHCHG,QCHG);
+Object.assign(ACT,TACT,CACT,RACT,PACT,IACT,XACT,SACT,YACT,BACT,KACT,MACT,CHACT,STACT,LANGACT,SVACT,QACT,RFACT);Object.assign(CHG,TCHG,CCHG,ICHG,XCHG,SCHG,YCHG,BCHG,KCHG,MCHG,CHCHG,QCHG);
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-a]');if(!el)return;
   const a=el.dataset.a,h=ACT[a];if(!h)return;
@@ -5804,7 +5909,7 @@ function boot(){
   const s=store.get(SKEY);U=s?(DB.accounts.find(a=>a.id===s)||null):null;
   if(U&&U.role==='director'){S.view='school';S.sid=U.sid}
   if(U&&U.role==='teacher')S.view='myclass';
-  render();if(LG==='fr')trTree(document.body);
+  navRestore();bootRender();if(LG==='fr')trTree(document.body);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 </script>
