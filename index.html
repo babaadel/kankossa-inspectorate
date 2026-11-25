@@ -5454,8 +5454,10 @@ function stBody(sid,ed){
   let l=DB.students.filter(s=>s.sid===sid);
   if(S.fc!=='all'&&cm[S.fc])l=l.filter(s=>s.cid===S.fc);
   const q=S.q.trim();if(q)l=l.filter(s=>(s.name+' '+s.no+' '+s.nat).indexOf(q)>-1);
-  l.sort((a,b)=>((cm[a.cid]||{level:99}).level-(cm[b.cid]||{level:99}).level)||byName(a,b));
-  return{n:l.length,html:l.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td>${s.sex==='M'?'ذكر':'أنثى'}</td><td>${esc(s.no)}</td><td>${esc(s.nat)}</td><td>${esc((cm[s.cid]||{}).name||'—')}</td>
+  /* رقم النداء = ترتيب التلميذ في قسمه نفسه (ثابت، لا يتغير بالبحث ولا بتصفية الأقسام) */
+  const cnm={};l.forEach(s=>{if(!cnm[s.cid]){cnm[s.cid]={};clsStu(s.cid).forEach((x,i)=>{cnm[s.cid][x.id]=i+1})}});
+  l.sort((a,b)=>((cm[a.cid]||{level:99}).level-(cm[b.cid]||{level:99}).level)||((cm[a.cid]||{}).name||'').localeCompare((cm[b.cid]||{}).name||'','ar')||(cnm[a.cid][a.id]-cnm[b.cid][b.id]));
+  return{n:l.length,html:l.map(s=>`<tr><td>${cnm[s.cid][s.id]}</td><td>${esc(s.name)}</td><td>${s.sex==='M'?'ذكر':'أنثى'}</td><td>${esc(s.no)}</td><td>${esc(s.nat)}</td><td>${esc((cm[s.cid]||{}).name||'—')}</td>
    ${ed?`<td style="white-space:nowrap"><button class="btn sm sec" data-a="editstu" data-id="${s.id}">✏️</button> <button class="btn sm dan" data-a="delstu" data-id="${s.id}">🗑️</button></td>`:''}</tr>`).join('')||`<tr><td colspan="7" class="c mut">لا توجد نتائج</td></tr>`};
 }
 function studentsTab(sid,ed){
@@ -5554,10 +5556,11 @@ function sheetHTML(sid,cid,p){
     (Y?['e1','e2','e3'].map(k=>rot(`${EXAMS[k]} / 20`)).join('')+rot('المعدل السنوي / 20')
       :sch.map(x=>rot(`${esc(x.n)} / ${x.mx}`)).join('')+rot(`المجموع / ${schMx(sch)}`)+rot('المعدل / 20'))+rot('النتيجة')+'</tr>';
   const cols=Y?[5,5,26,14,10,10,10,12,8]:[4,4,21,10].concat(sch.map(()=>(43.2/sch.length)),[5,5,7.5]);
-  const rows=ss.map((s,i)=>{const v=avgFor(s.id,p),m=(DB.marks[s.id]||{})[p]||{};
+  /* كشف الدرجات مرتّب بالرتبة (الأول فالثاني…)، ولكل تلميذ رقم ندائه الثابت في القسم؛ المتساوون بحسب رقم النداء ومن لا علامات له في الآخر */
+  const rows=ss.map((s,i)=>({s,cn:i+1})).sort((a,b)=>((rk[a.s.id]||9999)-(rk[b.s.id]||9999))||(a.cn-b.cn)).map(({s,cn})=>{const v=avgFor(s.id,p),m=(DB.marks[s.id]||{})[p]||{};
     const mid=Y?['e1','e2','e3'].map(k=>`<td>${fmtM(examAvg(s.id,k))}</td>`).join('')+`<td><b>${fmtM(v)}</b></td>`
       :sch.map(x=>`<td>${fmtM(m[x.id])}</td>`).join('')+`<td>${fmtM(examTot(s.id,p))}</td><td><b>${fmtM(v)}</b></td>`;
-    return `<tr><td>${rk[s.id]||'—'}</td><td>${i+1}</td><td class="knm">${esc(s.name)}</td><td>${esc(s.no||'—')}</td>${mid}<td class="kr">${resCell(v)}</td></tr>`});
+    return `<tr><td>${rk[s.id]||'—'}</td><td>${cn}</td><td class="knm">${esc(s.name)}</td><td>${esc(s.no||'—')}</td>${mid}<td class="kr">${resCell(v)}</td></tr>`});
   const np=Math.max(1,Math.ceil(rows.length/KPG)),tn=DB.teachers.filter(t=>t.cids.indexOf(cid)>-1).map(t=>t.name).join('، '),t2=(a,f)=>LG==='fr'?f:a;
   const pages=[];
   for(let i=0;i<np;i++){
